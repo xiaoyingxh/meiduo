@@ -27,12 +27,22 @@ SECRET_KEY = '1bifk3snw**nmd9&ip7i(rh8k(tyzao=8us$9jbpwte0yia2yv'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# CORS 白名单
+
+CORS_ORIGIN_WHITELIST = (
+    '127.0.0.1:8080',
+    'localhost:8080',
+    'www.meiduo.site:8080'
+)
+CORS_ALLOW_CREDENTIALS = True  # 允许携带cookie
+
+ALLOWED_HOSTS =  ['127.0.0.1','api.meiduo.site']
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -41,9 +51,14 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'users.apps.UsersConfig',
     # 'pay.apps.PayConfig',
+    # 安装框架
+    'rest_framework',
+    'oauth.apps.OauthConfig',
+
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -54,6 +69,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'meiduo.urls'
+
 
 TEMPLATES = [
     {
@@ -199,6 +215,31 @@ LOGGING = {
 REST_FRAMEWORK = {
     # 异常处理
     'EXCEPTION_HANDLER': 'utils.exception.exception_handler',
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_jwt.authentication.JSONWebTokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ),
 }
 
 AUTH_USER_MODEL = 'users.User'
+
+
+#有效期
+import datetime
+
+JWT_AUTH = {
+    'JWT_EXPIRATION_DELTA': datetime.timedelta(days=1),
+    'JWT_RESPONSE_PAYLOAD_HANDLER': 'utils.users.jwt_response_payload_handler',
+}
+
+AUTHENTICATION_BACKENDS = [
+   'utils.users.UsernameMobileAuthBackend',
+]
+
+
+QQ_APP_ID = '101474184'
+
+QQ_APP_KEY = 'c6ce949e04e12ecc909ae6a8b09b637c'
+
+QQ_REDIRECT_URL = 'http://www.meiduo.site:8080/oauth_callback.html'

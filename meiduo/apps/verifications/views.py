@@ -76,9 +76,15 @@ class RegisterSMSCodeView(APIView):
         redis_conn.setex('sms_%s'%mobile,5*60,sms_code)
         redis_conn.setex('sms_flag_%s' % mobile, 60, 1)
         #发送短信
-        ccp = CCP()
-        ccp.send_template_sms(mobile, [sms_code, 5], 1)
+        # ccp = CCP()
+        # ccp.send_template_sms(mobile, [sms_code, 5], 1)
         # 返回响应
+
+        #异步任务  delay调用
+        from celery_tasks.sms.tasks import send_sms_code
+        send_sms_code.delay(mobile,sms_code)
+
+
         return Response({'message': 'ok'})
 
 

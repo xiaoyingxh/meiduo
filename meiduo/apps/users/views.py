@@ -43,4 +43,20 @@ class  RegisterPhoneCountAPIView(APIView):
         return Response(context)
 
 
+from .serializers import RegisterUserSerializer
+class RegisterUserView(APIView):
+    """
+    用户注册
+    POST /users/
 
+    用户注册我们需要对数据进行校验,同时需要数据入库
+    """
+
+    def post(self,request):
+        serialiazer = RegisterUserSerializer(data=request.data)
+        #进行校验
+        serialiazer.is_valid()
+        #保存数据
+        serialiazer.save()
+
+        return  Response({'message': 'ok'})
