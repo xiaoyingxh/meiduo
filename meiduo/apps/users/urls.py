@@ -20,5 +20,7 @@ urlpatterns = [
 
     # users/auths/
     url(r'^auths/$', obtain_jwt_token),
+
+    url(r'^info/$',views.UserInfoView.as_view()),
 #
 ]

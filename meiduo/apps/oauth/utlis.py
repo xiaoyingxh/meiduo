@@ -21,7 +21,7 @@ class OauthQQTllo(object):
             'response_type': 'code',
             'client_id': settings.QQ_APP_ID,
             'redirect_uri': settings.QQ_REDIRECT_URL,
-            'state': 'test',
+            'state': '/',
         }
 
         # 对参数进行urlencode,然后拼接url
@@ -29,7 +29,7 @@ class OauthQQTllo(object):
 
         return auth_url
 
-    def get_access_tokrn_by_code(self,code):
+    def get_access_token_by_code(self,code):
 
         base_url = 'https://graph.qq.com/oauth2.0/token?'
 
@@ -51,9 +51,9 @@ class OauthQQTllo(object):
 
         access_data = parse_qs(data)
 
-        token = access_data.get('access_token'[0])
+        token = access_data.get('access_token')
 
-        return token
+        return token[0]
 
     def get_openid_by_token(self, token):
         """

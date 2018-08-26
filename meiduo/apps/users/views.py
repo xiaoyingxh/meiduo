@@ -2,6 +2,8 @@ from django.http import HttpResponse
 from django.shortcuts import render
 
 # Create your views here.
+from rest_framework.generics import GenericAPIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
@@ -59,4 +61,36 @@ class RegisterUserView(APIView):
         #保存数据
         serialiazer.save()
 
-        return  Response({'message': 'ok'})
+        return  Response({'message':'ok'})
+
+from rest_framework.permissions import IsAuthenticated,IsAuthenticatedOrReadOnly,IsAdminUser
+from .serializers import UserInfoSerializer
+
+# class UserInfoView(GenericAPIView):
+#
+#     permission_classes = [IsAuthenticated]
+#
+#     def get(self, request):
+#
+#         user = request.user
+#
+#         serializer = UserInfoSerializer(instance=user)
+#
+#         return Response(serializer.data)
+
+from rest_framework.generics import RetrieveAPIView
+
+class UserInfoView(RetrieveAPIView):
+
+    permission_classes = [IsAuthenticated]
+
+    serializer_class = UserInfoSerializer
+
+    def get_object(self):
+        return self.request.user
+
+
+
+
+
+
