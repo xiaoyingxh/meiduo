@@ -2,6 +2,7 @@ from django.http import HttpResponse
 from django.shortcuts import render
 
 # Create your views here.
+from rest_framework import status
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -88,6 +89,64 @@ class UserInfoView(RetrieveAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.generics import UpdateAPIView
+from .serializers import EmailSerializer
+
+
+class EmailView(UpdateAPIView):
+    """
+    保存邮箱
+    PUT /users/emails/
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    serializer_class = EmailSerializer
+
+    def get_object(self):
+        return self.request.user
+
+
+
+class UserListView(GenericAPIView):
+
+    serializer_class = UserInfoSerializer
+
+    queryset = User.objects.all()
+
+    def get(self,request):
+
+        #1.查询所有数据
+        books = self.get_queryset()
+
+        #2.创建序列化器,用序列化器实现将模型转为字典
+        serializer = self.get_serializer(books,many=True)
+
+        #3.返回数据
+        return Response(serializer.data)
+
+
+class EmailActiveView(APIView):
+
+    def get(self,request):
+
+        token = request.query_params.grt('token')
+
+        if token is None:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.generic_user_info(token)
+
+        if user is None:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        user.email_active = True
+        user.save()
+
+        return  Response({'message':'ok'})
 
 
 

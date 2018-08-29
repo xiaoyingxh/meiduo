@@ -21,6 +21,11 @@ urlpatterns = [
     # users/auths/
     url(r'^auths/$', obtain_jwt_token),
 
-    url(r'^info/$',views.UserInfoView.as_view()),
+    url(r'^infos/$',views.UserInfoView.as_view()),
+
+    url(r'^emails/$', views.EmailView.as_view(), name='send_mail'),
+
+    url(r'^list/$',views.UserListView.as_view()),
 #
+    url(r'^email/verification/$',views.EmailActiveView.as_view())
 ]

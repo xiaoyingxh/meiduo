@@ -2,7 +2,8 @@
 # @File  : serializers.py
 # @Author:xiaoheng
 # @time: 18-8-21 下午4:26
-
+from django.conf import settings
+from django.core.mail import send_mail
 from rest_framework import serializers
 from .models import User
 import re
@@ -125,3 +126,54 @@ class  UserInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'username', 'mobile', 'email', 'email_active')
+
+
+
+class EmailSerializer(serializers.ModelSerializer):
+    """
+    邮箱序列化器
+    """
+
+    class Meta:
+        model = User
+        fields = ('id','email')
+        extra_kwargs = {
+            'email':{
+                'required':True
+            }
+        }
+
+    from django.core.mail import send_mail
+    def update(self, instance, validated_data):
+
+        email = validated_data['email']
+        instance.email = email
+        instance.save()
+
+        # subject = '美多主题'
+        # message= ''
+        #
+        # from_email = settings.EMATL_FROM
+        # recipient_list = [email]
+        #
+        #
+        # # url = instance.generic_verify_url()
+        #
+        #
+        # html_message = '<p>尊敬的用户您好！</p>' \
+        #            '<p>感谢您使用美多商城。</p>' \
+        #            '<p>您的邮箱为：%s 。请点击此链接激活您的邮箱：</p>' \
+        #            '<p><a href="%s">%s<a></p>' % (email, url, url)
+        # send_mail(subject,message,from_email,recipient_list,html_message=html_message)
+
+        url = instance.generic_verify_url()
+        from celery_tasks.email.tasks import send_verify_mail
+
+        send_verify_mail.delay(email,url)
+
+
+
+        return instance
+
+
+
