@@ -27,5 +27,12 @@ urlpatterns = [
 
     url(r'^list/$',views.UserListView.as_view()),
 #
-    url(r'^email/verification/$',views.EmailActiveView.as_view())
+    url(r'^email/verification/$',views.EmailActiveView.as_view()),
+
+    url(r'^browerhistories/$', views.UserHistoryView.as_view(), name='history'),
+
+
+
+
+
 ]

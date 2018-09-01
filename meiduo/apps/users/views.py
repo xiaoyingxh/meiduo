@@ -3,14 +3,26 @@ from django.shortcuts import render
 
 # Create your views here.
 from rest_framework import status
-from rest_framework.generics import GenericAPIView
+from rest_framework.filters import OrderingFilter
+from rest_framework.generics import GenericAPIView, ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework import mixins
+from rest_framework_extensions.cache.mixins import ListCacheResponseMixin
 
-
+from goods.models import SKU
+from goods.serializers import SKUSerializer
+from .serializers import  UserHistorySerializer
 from .models import User
 from django_redis import get_redis_connection
+from .serializers import RegisterUserSerializer
+from rest_framework.permissions import IsAuthenticated,IsAuthenticatedOrReadOnly,IsAdminUser
+from .serializers import UserInfoSerializer
+from rest_framework.generics import RetrieveAPIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.generics import UpdateAPIView
+from .serializers import EmailSerializer
 
 class RegisterUsernameCountAPIView(APIView):
     """
@@ -46,7 +58,7 @@ class  RegisterPhoneCountAPIView(APIView):
         return Response(context)
 
 
-from .serializers import RegisterUserSerializer
+
 class RegisterUserView(APIView):
     """
     用户注册
@@ -64,8 +76,7 @@ class RegisterUserView(APIView):
 
         return  Response({'message':'ok'})
 
-from rest_framework.permissions import IsAuthenticated,IsAuthenticatedOrReadOnly,IsAdminUser
-from .serializers import UserInfoSerializer
+
 
 # class UserInfoView(GenericAPIView):
 #
@@ -79,7 +90,6 @@ from .serializers import UserInfoSerializer
 #
 #         return Response(serializer.data)
 
-from rest_framework.generics import RetrieveAPIView
 
 class UserInfoView(RetrieveAPIView):
 
@@ -90,11 +100,6 @@ class UserInfoView(RetrieveAPIView):
     def get_object(self):
         return self.request.user
 
-
-
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.generics import UpdateAPIView
-from .serializers import EmailSerializer
 
 
 class EmailView(UpdateAPIView):
@@ -150,6 +155,53 @@ class EmailActiveView(APIView):
 
 
 
+class UserHistoryView(mixins.CreateModelMixin, GenericAPIView):
+    """
+    用户浏览历史记录
+    POST /users/histories/
+    GET  /users/histories/
+    数据只需要保存到redis中
+    """
 
+
+    serializer_class = UserHistorySerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+
+        serializer = self.get_serializer(data = request.data)
+
+        serializer.is_valis()
+
+        serializer.save()
+
+        """
+        保存
+        """
+        return Response(serializer.data)
+
+
+    """
+      用户浏览历史记录
+      POST /users/browerhistories/
+      GET  /users/browerhistories/
+      数据只需要保存到redis中
+      """
+    def get(self, request):
+        """获取"""
+        # 获取用户信息
+        user_id = request.user.id
+        # 连接redis
+        redis_conn = get_redis_connection('history')
+        # 获取数据
+        history_sku_ids = redis_conn.lrange('history_%s' % user_id, 0, 5)
+        skus = []
+        for sku_id in history_sku_ids:
+            sku = SKU.objects.get(pk=sku_id)
+            skus.append(sku)
+        # 序列化
+        serializer = SKUSerializer(skus, many=True)
+
+        return Response(serializer.data)
 
 

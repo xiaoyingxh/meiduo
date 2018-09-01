@@ -1,167 +1,128 @@
+from django.db.migrations import serializer
+from django.http import HttpResponse
 from django.shortcuts import render
+from django.views.generic import View
+from rest_framework.filters import OrderingFilter
+from rest_framework.generics import ListAPIView, GenericAPIView
+from rest_framework.response import Response
+from rest_framework_extensions.cache.mixins import ListCacheResponseMixin
+
+from goods.models import GoodsCategory, GoodsChannel, SKU
+from contents.models import ContentCategory
+from collections import OrderedDict
+
 
 # Create your views here.
-from django.db import models
-from utils.models import BaseModel
+from goods.serializers import SKUSerializer
 
-class GoodsCategory(BaseModel):
+
+class HomeView(View):
     """
-    商品类别
+    获取首页分类数据
+
+    GET /goods/categories/
     """
-    name = models.CharField(max_length=10, verbose_name='名称')
-    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, verbose_name='父类别')
 
-    class Meta:
-        db_table = 'tb_goods_category'
-        verbose_name = '商品类别'
-        verbose_name_plural = verbose_name
+    def get(self, request):
+        # categories = {
+        #     1: { # 组1
+        #         'channels': [{'id':, 'name':, 'url':},{}, {}...],
+        #         'sub_cats': [{'id':, 'name':, 'sub_cats':[{},{}]}, {}, {}, ..]
+        #     },
+        #     2: { # 组2
+        #
+        #     }
+        # }
+        # 初始化存储容器
+        categories = OrderedDict()
+        # 获取一级分类
+        channels = GoodsChannel.objects.order_by('group_id', 'sequence')
 
-    def __str__(self):
-        return self.name
+        # 对一级分类进行遍历
+        for channel in channels:
+            # 获取group_id
+            group_id = channel.group_id
+            # 判断group_id 是否在存储容器,如果不在就初始化
+            if group_id not in categories:
+                categories[group_id] = {
+                    'channels': [],
+                    'sub_cats': []
+                }
+
+            one = channel.category
+            # 为channels填充数据
+            categories[group_id]['channels'].append({
+                'id': one.id,
+                'name': one.name,
+                'url': channel.url
+            })
+            # 为sub_cats填充数据
+            for two in one.goodscategory_set.all():
+                # 初始化 容器
+                two.sub_cats = []
+                # 遍历获取
+                for three in two.goodscategory_set.all():
+                    two.sub_cats.append(three)
+
+                # 组织数据
+                categories[group_id]['sub_cats'].append(two)
+
+        contents = {}
+        content_categories = ContentCategory.objects.all()
+        # content_categories = [{'name':xx , 'key': 'index_new'}, {}, {}]
+
+        # {
+        #    'index_new': [] ,
+        #    'index_lbt': []
+        # }
+        for cat in content_categories:
+            contents[cat.key] = cat.content_set.filter(status=True).order_by('sequence')
+
+        context = {
+            'categories': categories,
+            'contents': contents
+        }
+        return render(request, 'index.html', context)
+        # return HttpResponse({'message' : "00000"})
 
 
-class GoodsChannel(BaseModel):
+
+
+class HotSKUView(GenericAPIView):
     """
-    商品频道
+    获取热销商品
+    GET /goods/categories/(?P<category_id>\d+)/hotskus/
+    # """
+    serializer_class = SKUSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+
+        category_id = self.kwargs['category_id']
+
+        return SKU.objects.filter(category_id=category_id,is_launched=True).order_by('-sales')[:2]
+    # def get(self,request,category_id):
+    #
+    #     skus = SKU.objects.filter(category_id = category_id,is_launched=True).order_by('-sales')
+    #
+    #     serializer = SKUSerializer(instance=skus,many=True)
+    #
+    #     return Response(serializer.data)
+
+
+
+class SKUListView(ListAPIView):
     """
-    group_id = models.IntegerField(verbose_name='组号')
-    category = models.ForeignKey(GoodsCategory, on_delete=models.CASCADE, verbose_name='顶级商品类别')
-    url = models.CharField(max_length=50, verbose_name='频道页面链接')
-    sequence = models.IntegerField(verbose_name='组内顺序')
-
-    class Meta:
-        db_table = 'tb_goods_channel'
-        verbose_name = '商品频道'
-        verbose_name_plural = verbose_name
-
-    def __str__(self):
-        return self.category.name
-
-
-class Brand(BaseModel):
+    商品列表数据
+    GET /goods/categories/(?P<category_id>\d+)/skus/?page=xxx&page_size=xxx&ordering=xxx
     """
-    品牌
-    """
-    name = models.CharField(max_length=20, verbose_name='名称')
-    logo = models.ImageField(verbose_name='Logo图片')
-    first_letter = models.CharField(max_length=1, verbose_name='品牌首字母')
 
-    class Meta:
-        db_table = 'tb_brand'
-        verbose_name = '品牌'
-        verbose_name_plural = verbose_name
-
-    def __str__(self):
-        return self.name
+    serializer_class = SKUSerializer
+    # 通过定义过滤后端 ，来实行排序行为
+    filter_backends = [OrderingFilter]
+    ordering_fields = ('create_time', 'price', 'sales')
 
 
-class Goods(BaseModel):
-    """
-    商品SPU
-    """
-    name = models.CharField(max_length=50, verbose_name='名称')
-    brand = models.ForeignKey(Brand, on_delete=models.PROTECT, verbose_name='品牌')
-    category1 = models.ForeignKey(GoodsCategory, on_delete=models.PROTECT, related_name='cat1_goods', verbose_name='一级类别')
-    category2 = models.ForeignKey(GoodsCategory, on_delete=models.PROTECT, related_name='cat2_goods', verbose_name='二级类别')
-    category3 = models.ForeignKey(GoodsCategory, on_delete=models.PROTECT, related_name='cat3_goods', verbose_name='三级类别')
-    sales = models.IntegerField(default=0, verbose_name='销量')
-    comments = models.IntegerField(default=0, verbose_name='评价数')
-
-    class Meta:
-        db_table = 'tb_goods'
-        verbose_name = '商品'
-        verbose_name_plural = verbose_name
-
-    def __str__(self):
-        return self.name
-
-
-class GoodsSpecification(BaseModel):
-    """
-    商品规格
-    """
-    goods = models.ForeignKey(Goods, on_delete=models.CASCADE, verbose_name='商品')
-    name = models.CharField(max_length=20, verbose_name='规格名称')
-
-    class Meta:
-        db_table = 'tb_goods_specification'
-        verbose_name = '商品规格'
-        verbose_name_plural = verbose_name
-
-    def __str__(self):
-        return '%s: %s' % (self.goods.name, self.name)
-
-
-class SpecificationOption(BaseModel):
-    """
-    规格选项
-    """
-    spec = models.ForeignKey(GoodsSpecification, on_delete=models.CASCADE, verbose_name='规格')
-    value = models.CharField(max_length=20, verbose_name='选项值')
-
-    class Meta:
-        db_table = 'tb_specification_option'
-        verbose_name = '规格选项'
-        verbose_name_plural = verbose_name
-
-    def __str__(self):
-        return '%s - %s' % (self.spec, self.value)
-
-
-class SKU(BaseModel):
-    """
-    商品SKU
-    """
-    name = models.CharField(max_length=50, verbose_name='名称')
-    caption = models.CharField(max_length=100, verbose_name='副标题')
-    goods = models.ForeignKey(Goods, on_delete=models.CASCADE, verbose_name='商品')
-    category = models.ForeignKey(GoodsCategory, on_delete=models.PROTECT, verbose_name='从属类别')
-    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='单价')
-    cost_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='进价')
-    market_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='市场价')
-    stock = models.IntegerField(default=0, verbose_name='库存')
-    sales = models.IntegerField(default=0, verbose_name='销量')
-    comments = models.IntegerField(default=0, verbose_name='评价数')
-    is_launched = models.BooleanField(default=True, verbose_name='是否上架销售')
-    default_image_url = models.CharField(max_length=200, default='', null=True, blank=True, verbose_name='默认图片')
-
-    class Meta:
-        db_table = 'tb_sku'
-        verbose_name = '商品SKU'
-        verbose_name_plural = verbose_name
-
-    def __str__(self):
-        return '%s: %s' % (self.id, self.name)
-
-
-class SKUImage(BaseModel):
-    """
-    SKU图片
-    """
-    sku = models.ForeignKey(SKU, on_delete=models.CASCADE, verbose_name='sku')
-    image = models.ImageField(verbose_name='图片')
-
-    class Meta:
-        db_table = 'tb_sku_image'
-        verbose_name = 'SKU图片'
-        verbose_name_plural = verbose_name
-
-    def __str__(self):
-        return '%s %s' % (self.sku.name, self.id)
-
-
-class SKUSpecification(BaseModel):
-    """
-    SKU具体规格
-    """
-    sku = models.ForeignKey(SKU, on_delete=models.CASCADE, verbose_name='sku')
-    spec = models.ForeignKey(GoodsSpecification, on_delete=models.PROTECT, verbose_name='规格名称')
-    option = models.ForeignKey(SpecificationOption, on_delete=models.PROTECT, verbose_name='规格值')
-
-    class Meta:
-        db_table = 'tb_sku_specification'
-        verbose_name = 'SKU规格'
-        verbose_name_plural = verbose_name
-
-    def __str__(self):
-        return '%s: %s - %s' % (self.sku, self.spec.name, self.option.value)
+    def get_queryset(self):
+        categroy_id = self.kwargs.get("category_id")
+        return SKU.objects.filter(category_id=categroy_id, is_launched=True)

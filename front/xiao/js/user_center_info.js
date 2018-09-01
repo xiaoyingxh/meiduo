@@ -17,6 +17,8 @@ var vm = new Vue({
         send_email_tip: '重新发送验证邮件',
         email_error: false,
     },
+
+
     mounted: function () {
         // 判断用户的登录状态
         if (this.user_id && this.token) {
@@ -34,6 +36,21 @@ var vm = new Vue({
                     this.mobile = response.data.mobile;
                     this.email = response.data.email;
                     this.email_active = response.data.email_active;
+
+                    // 补充请求浏览历史
+                    axios.get(this.host + '/users/browerhistories/', {
+                        headers: {
+                            'Authorization': 'JWT ' + this.token
+                        },
+                        responseType: 'json'
+                    })
+                        .then(response => {
+                            this.histories = response.data;
+                            for (var i = 0; i < this.histories.length; i++) {
+                                this.histories[i].url = '/goods/' + this.histories[i].id + '.html';
+                            }
+                        })
+
                 })
                 .catch(error => {
                     if (error.response.status == 401 || error.response.status == 403) {
@@ -44,6 +61,9 @@ var vm = new Vue({
             location.href = '/login.html?next=/user_center_info.html';
         }
     },
+
+
+
     methods: {
         // 退出
         logout: function () {

@@ -9,6 +9,7 @@ if __name__ == "__main__":
     except ImportError:
         # The above import may fail for some other reason. Ensure that the
         # issue is really that Django is missing to avoid masking other
+
         # exceptions on Python 2.
         try:
             import django
@@ -20,3 +21,9 @@ if __name__ == "__main__":
             )
         raise
     execute_from_command_line(sys.argv)
+
+"""
+超级管理员:
+账号:admin
+密码:python15
+"""
